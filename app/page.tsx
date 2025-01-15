@@ -84,8 +84,6 @@ interface CustomCardProps {
   className?: string;
 }
 
-
-
 export default function Home() {
   const [searchValue, setSearchValue] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -95,7 +93,7 @@ export default function Home() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [suggestions, setSuggestions] = useState<string[]>([])
-  const pageSize = 6
+  const pageSize = 9
   const observer = useRef<IntersectionObserver>()
   const loadingRef = useRef(false)
   const [totalResults, setTotalResults] = useState(0)
@@ -117,25 +115,29 @@ export default function Home() {
   }, [fetchRandomSuggestions])
 
   const fetchPostsFromSupabase = useCallback(async () => {
-
-
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('posts')
-        .select('*')
-        .order('id', { ascending: true });
+        .select('*', { count: 'exact' })
+        .order('id', { ascending: true })
+        .range((page - 1) * pageSize, page * pageSize - 1);
+        
       if (error) throw error;
-      setPosts(data || []);
+      
+      setPosts(prev => page === 1 ? data || [] : [...prev, ...(data || [])]);
       setError(null);
-
-
+      
+      if (data && data.length < pageSize) {
+        setHasMore(false);
+      }
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  }, []);
+  }, [page, pageSize]);
 
   const handleSearch = useCallback(async (queryOrEvent?: string | React.MouseEvent<HTMLButtonElement>) => {
     let query = typeof queryOrEvent === 'string' ? queryOrEvent : searchValue.trim();
@@ -204,14 +206,20 @@ export default function Home() {
     if (observer.current) observer.current.disconnect()
     
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !isSearching) {
+      if (entries[0].isIntersecting && 
+          entries[0].intersectionRatio >= 1 && 
+          hasMore && 
+          !isSearching && 
+          !loadingRef.current) {
+        loadingRef.current = true
         setPage(prevPage => prevPage + 1)
-        fetchPostsFromSupabase()
       }
+    }, {
+      threshold: 1.0 // 只有当元素完全进入视口时才触发
     })
     
     if (node) observer.current.observe(node)
-  }, [loading, hasMore, isSearching, page, fetchPostsFromSupabase])
+  }, [loading, hasMore, isSearching])
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchValue(e.target.value);
@@ -221,7 +229,7 @@ export default function Home() {
     if (!isSearching) {
       fetchPostsFromSupabase();
     }
-  }, [isSearching, fetchPostsFromSupabase]);
+  }, [isSearching, fetchPostsFromSupabase, page]);
 
   return (
     <main className="container py-12">
@@ -349,7 +357,7 @@ export default function Home() {
           
           {loading && <div className="text-center py-4">加载中...</div>}
           {!hasMore && posts.length > 0 && (
-            <div className="text-center py-4 text-gray-500"></div>
+            <div className="text-center py-4 text-gray-500">没有更多数据了</div>
           )}
         </div>
       </div>
