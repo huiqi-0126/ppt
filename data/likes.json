@@ -55,6 +55,13 @@
       "firstLikeCount": 0,
       "lastLikeDate": "2025-01-15",
       "targetLikes": 1
+    },
+    {
+      "postId": "53",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 0,
+      "lastLikeDate": "2025-01-15",
+      "targetLikes": 10
     }
   ]
 }
