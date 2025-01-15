@@ -117,32 +117,18 @@ export default function Home() {
   }, [fetchRandomSuggestions])
 
   const fetchPostsFromSupabase = useCallback(async () => {
-    const cachedData = localStorage.getItem('postsCache');
-    const cachedTime = localStorage.getItem('postsCacheTime');
 
-    // 检查缓存是否存在且未过期（24小时）
-    if (cachedData && cachedTime) {
-      const now = Date.now();
-      const cacheAge = now - Number(cachedTime);
-      if (cacheAge < 60 * 1000) { // 24小时  24 * 60 * 60 * 
-        setPosts(JSON.parse(cachedData));
-        setLoading(false);
-        return;
-      }
-    }
 
     try {
       const { data, error } = await supabase
-        .from('choiceness')
+        .from('posts')
         .select('*')
         .order('id', { ascending: true });
       if (error) throw error;
       setPosts(data || []);
       setError(null);
 
-      // 将数据和当前时间存入缓存
-      localStorage.setItem('postsCache', JSON.stringify(data));
-      localStorage.setItem('postsCacheTime', String(Date.now()));
+
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
