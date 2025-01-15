@@ -4,9 +4,13 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import { RefreshCw, Eye, ThumbsUp, Download, Share2, Lightbulb } from "lucide-react"
+import { Card as UiCard } from "@/components/ui/card"
+import { RefreshCw, Eye, ThumbsUp, Download, Lightbulb } from "lucide-react"
 import { useState, useEffect, ChangeEvent, useCallback, useRef } from "react"
+import { PostCard } from "@/components/post-card"
+import Image from 'next/image'
+import { supabase } from '../supabaseClient'
+import { encodeId } from "@/lib/encodeUtils"
 
 interface Post {
   id: number
@@ -15,10 +19,72 @@ interface Post {
   views: number
   likes: number
   downloads: number
+  publishDate:string
   shares: number
   tags: string[]
   author: string
 }
+
+// 更新 AI 工具数据，使用本地图片路径
+const aiTools = [
+  {
+    name: "豆包",
+    description: "抖音旗下AI工具，你的智能助手",
+    url: "https://kimi.moonshot.cn/",
+    icon: "/images/doubao_icon.png"
+  },
+  {
+    name: "即梦生图",
+    description: "免费AI绘画和视频生成工具",
+    url: "https://jimmg.com/",
+    icon: "/images/jimeng_icon.png"
+  },
+  {
+    name: "KimiPPT",
+    description: "长文本?不在话下!Kimi智能梳理，效率卓越。",
+    url: "https://kimi.moonshot.cn/",
+    icon: "/images/kimi_icon.png"
+  },
+  {
+    name: "美图AI PPT",
+    description: "专注于美化和设计的AI PPT工具，让PPT更具视觉冲击力",
+    url: "https://www.designkit.com/ppt/",
+    icon: "/images/meitu-ai-ppt.jpg"
+  },
+  {
+    name: "ChatPPT",
+    description: "创新的AI驱动PPT生成工具，通过对话式交互和全流程AI创作",
+    url: "https://chat-ppt.com/",
+    icon: "/images/chatppt-icon.png"
+  },
+  {
+    name: "爱设计PPT",
+    description: "AI驱动的PPT制作神器，让设计更简单",
+    url: "https://ppt.isheji.com/",
+    icon: "/images/isheji-ppt-icon.png"
+  },
+  {
+    name: "免费ChatGPT中文版",
+    description: "智能PPT生成助手，让PPT制作更加轻松快捷",
+    url: "https://chatgai.lovepor.cn/",
+    icon: "/images/gezhe-caixuan-icon.png"
+  },
+  {
+    name: "auxi",
+    description: "专业的AI驱动PPT生成工具，支持多种场景和行业模板",
+    url: "https://www.auxi.ai/",
+    icon: "/images/auxi-icon.png"
+  }
+]
+
+interface CustomCardProps {
+  title: string;
+  cover: string;
+  downloads: number;
+  className?: string;
+}
+
+
 
 export default function Home() {
   const [searchValue, setSearchValue] = useState("")
@@ -32,6 +98,8 @@ export default function Home() {
   const pageSize = 6
   const observer = useRef<IntersectionObserver>()
   const loadingRef = useRef(false)
+  const [totalResults, setTotalResults] = useState(0)
+  const [recommendPosts, setRecommendPosts] = useState<Post[]>([])
 
   const fetchRandomSuggestions = useCallback(async () => {
     try {
@@ -48,80 +116,135 @@ export default function Home() {
     fetchRandomSuggestions()
   }, [fetchRandomSuggestions])
 
-  const handleSearch = useCallback(async () => {
-    if (!searchValue.trim()) return
-    
-    setIsSearching(true)
-    setLoading(true)
-    setPage(1) // 重置页码
-    
-    try {
-      const response = await fetch(`/api/posts/search?q=${encodeURIComponent(searchValue)}&page=1&limit=${pageSize}`)
-      if (!response.ok) {
-        throw new Error('搜索失败')
-      }
-      const data = await response.json()
-      setPosts(data.posts)
-      setHasMore(data.hasMore)
-    } catch (error) {
-      console.error('搜索失败:', error)
-      setError(error instanceof Error ? error.message : '未知错误')
-    } finally {
-      setLoading(false)
-    }
-  }, [searchValue, pageSize])
+  const fetchPostsFromSupabase = useCallback(async () => {
+    const cachedData = localStorage.getItem('postsCache');
+    const cachedTime = localStorage.getItem('postsCacheTime');
 
-  const fetchPosts = useCallback(async (page: number) => {
-    if (loadingRef.current) return
-    loadingRef.current = true
-    setLoading(true)
+    // 检查缓存是否存在且未过期（24小时）
+    if (cachedData && cachedTime) {
+      const now = Date.now();
+      const cacheAge = now - Number(cachedTime);
+      if (cacheAge < 24 * 60 * 60 * 1000) { // 24小时
+        setPosts(JSON.parse(cachedData));
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('choiceness')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+      setPosts(data || []);
+      setError(null);
+
+      // 将数据和当前时间存入缓存
+      localStorage.setItem('postsCache', JSON.stringify(data));
+      localStorage.setItem('postsCacheTime', String(Date.now()));
+    } catch (error) {
+      console.error('Error fetching data from Supabase:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleSearch = useCallback(async (event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    let query = searchValue.trim();
+    
+    if (query === '') {
+      setIsSearching(false);
+      setLoading(true);
+      setPosts([]);
+      setPage(1);
+      setError(null);
+      setHasMore(true);
+      setTotalResults(0);
+      fetchPostsFromSupabase();
+      return;
+    }
+    
+    setIsSearching(true);
+    setLoading(true);
+    setPosts([]);
+    setPage(1);
+    setError(null);
+    setHasMore(false);
+    setTotalResults(0);
     
     try {
-      const url = isSearching 
-        ? `/api/posts/search?q=${encodeURIComponent(searchValue)}&page=${page}&limit=${pageSize}`
-        : `/api/posts?page=${page}&limit=${pageSize}`
-      
-      const response = await fetch(url)
+      const response = await fetch(`/api/posts/search?q=${encodeURIComponent(query)}&page=1&limit=${pageSize}`);
       if (!response.ok) {
-        throw new Error('获取数据失败')
+        throw new Error('搜索失败');
       }
-      const data = await response.json()
-      setPosts(prevPosts => page === 1 ? data.posts : [...prevPosts, ...data.posts])
-      setHasMore(data.hasMore)
+      const data = await response.json();
+      
+      if (data.posts.length === 0) {
+        setError('没有搜索到相关PPT');
+        setPosts([]);
+        setTotalResults(0);
+        const recommendResponse = await fetch('/api/recommend');
+        const recommendData = await recommendResponse.json();
+        setRecommendPosts(recommendData.posts);
+      } else {
+        setPosts(data.posts);
+        setTotalResults(data.posts.length);
+        setHasMore(false);
+        setRecommendPosts([]);
+      }
     } catch (error) {
-      console.error('获取数据失败:', error)
-      setError(error instanceof Error ? error.message : '未知错误')
+      console.error('搜索失败:', error);
+      setError(error instanceof Error ? error.message : '未知错误');
+      setPosts([]);
+      setTotalResults(0);
     } finally {
-      setLoading(false)
-      loadingRef.current = false
+      setLoading(false);
     }
-  }, [isSearching, searchValue, pageSize])
+  }, [searchValue, pageSize, fetchPostsFromSupabase]);
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    if (typeof suggestion !== 'string') return;
+    setSearchValue(suggestion);
+  }, []);
 
   useEffect(() => {
-    fetchPosts(page)
-  }, [page, fetchPosts])
+    if (searchValue) {
+      handleSearch();
+    }
+  }, [searchValue, handleSearch]);
 
-  const lastPostRef = useCallback((node: HTMLElement | null) => {
-    if (loadingRef.current) return
+  const lastPostRef = useCallback((node: HTMLDivElement) => {
+    if (loading) return
     if (observer.current) observer.current.disconnect()
     
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
+      if (entries[0].isIntersecting && hasMore && !isSearching) {
         setPage(prevPage => prevPage + 1)
+        fetchPostsFromSupabase()
       }
     })
     
     if (node) observer.current.observe(node)
-  }, [hasMore])
+  }, [loading, hasMore, isSearching, page, fetchPostsFromSupabase])
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchValue(e.target.value)
   }
 
+  useEffect(() => {
+    if (!isSearching) {
+      fetchPostsFromSupabase();
+    }
+  }, [isSearching, fetchPostsFromSupabase]);
+
   return (
     <main className="container py-12">
       <div>
-        <div className="space-y-2 text-center mt-8 mb-12">
+      <div className="space-y-2 text-center mt-8 mb-12">
           <h1 className="text-xl font-bold tracking-tighter sm:text-2xl md:text-3xl lg:text-4xl">
             快速掌握如何用AI制作你需要的PPT
           </h1>
@@ -163,15 +286,13 @@ export default function Home() {
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {suggestions.map((suggestion) => (
+            <div className="mt-2 flex flex-nowrap gap-2 overflow-hidden whitespace-nowrap" style={{ width: '200px' }}>
+              {suggestions.slice(0, 4).map((suggestion) => (
                 <Button
                   key={suggestion}
                   variant="outline"
-                  onClick={() => {
-                    setSearchValue(suggestion)
-                    handleSearch() // 自动触发搜索
-                  }}
+                  className="flex-shrink-0"
+                  onClick={() => handleSuggestionClick(suggestion)}
                 >
                   {suggestion}
                 </Button>
@@ -183,61 +304,111 @@ export default function Home() {
         <div className="mt-12">
           <div className="flex items-center mb-6">
             <h2 className="text-2xl font-bold">
-              {isSearching ? "搜索结果" : "最新作品"}
+              {isSearching ? "搜索结果" : "精选作品"}
             </h2>
-            <span className="text-sm text-gray-500 ml-4">
-              支持原始文档下载
-            </span>
+            {isSearching && (
+              <span className="text-sm text-gray-500 ml-4">
+                找到 {totalResults} 条相关内容
+              </span>
+            )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post: Post, index) => (
-              <Link 
-                key={post.id} 
-                href={{
-                  pathname: `/posts/${post.id}`,
-                  query: { id: post.id }
-                }}
-                ref={index === posts.length - 1 ? lastPostRef : null}
-              >
-                <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <img
-                    src={post.images[0]}
-                    alt={post.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="p-4">
-                    <h3 className="font-semibold mb-2">{post.title}</h3>
-                    <div className="flex gap-4 text-gray-500 mb-3">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" /> {post.views}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp className="h-4 w-4" /> {post.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Download className="h-4 w-4" /> {post.downloads}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Share2 className="h-4 w-4" /> {post.shares}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {post.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+          {error ? (
+            <>
+              <div className="text-center py-8 text-gray-500">
+                {error}
+              </div>
+              {recommendPosts.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-2xl font-bold mb-4">相关推荐</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {recommendPosts.map((post) => (
+                      <Link 
+                        key={post.id} 
+                        href={{
+                          pathname: `/posts/${post.id}`,
+                          query: { id: encodeId(post.id) }
+                        }}
+                      >
+                        <UiCard className="p-4 cursor-pointer">
+                          <img
+                            src={post.images[0]}
+                            alt={post.title}
+                            className="w-full h-48 object-cover mb-4"
+                          />
+                          <h3 className="text-lg font-semibold">{post.title}</h3>
+                          <p className="text-sm text-gray-500">{post.author} · 发布于 {post.publishDate}</p>
+                          <div className="flex gap-2 mt-2">
+                            {(Array.isArray(post.tags) ? post.tags : []).map((tag) => (
+                              <Badge key={tag} variant="secondary">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </UiCard>
+                      </Link>
+                    ))}
                   </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {posts.map((post, index) => (
+                <div
+                  key={post.id}
+                  ref={index === posts.length - 1 ? lastPostRef : undefined}
+                >
+                  <PostCard post={post} />
+                </div>
+              ))}
+            </div>
+          )}
+          
           {loading && <div className="text-center py-4">加载中...</div>}
-          {!hasMore && <div className="text-center py-4 text-gray-500">没有更多内容了</div>}
+          {!hasMore && posts.length > 0 && (
+            <div className="text-center py-4 text-gray-500"></div>
+          )}
         </div>
       </div>
+
+      {/* AI工具模块 */}
+      <section className="container mx-auto px-4 py-12 border-t">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-2xl font-bold mb-8">AI 工具推荐</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {aiTools.map((tool) => (
+              <a
+                key={tool.name}
+                href={tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group p-6 bg-white rounded-lg border hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="relative w-10 h-10 flex-shrink-0">
+                    <Image 
+                      src={tool.icon}
+                      alt={`${tool.name} 图标`}
+                      fill
+                      className="object-contain"
+                      sizes="40px"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
+                      {tool.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 line-clamp-2">
+                      {tool.description}
+                    </p>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
   )
 }

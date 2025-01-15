@@ -65,9 +65,9 @@ export default function PostDetail({ params }: { params: { id: string } }) {
         <div className="flex justify-between items-center mb-6">
           <div className="space-y-3">
             <div className="flex gap-4 text-gray-500">
-              <span className="flex items-center gap-1">
+              {/* <span className="flex items-center gap-1">
                 <Eye className="h-4 w-4" /> {post.views}
-              </span>
+              </span> */}
               <span className="flex items-center gap-1">
                 <ThumbsUp className="h-4 w-4" /> {post.likes}
               </span>

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
+import { supabase } from '@/supabaseClient'
 
-interface Post {
+export interface Post {
   id: number
   title: string
   images: string[]
@@ -25,12 +24,36 @@ export async function GET(request: Request) {
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 6
     
-    const filePath = path.join(process.cwd(), 'content.txt')
-    const data = fs.readFileSync(filePath, 'utf-8')
-    const allPosts = JSON.parse(data)
+    let { data: allPosts, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('id', { ascending: false })
+    
+    if (error) {
+      throw error
+    }
+    
+    if (!allPosts) {
+      allPosts = []
+    }
     
     if (id) {
-      const post = allPosts.find((p: Post) => p.id === Number(id))
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', Number(id))
+        .single()
+      
+      if (postError) {
+        throw postError
+      }
+      
+      if (!post) {
+        return NextResponse.json(
+          { error: 'Post not found' },
+          { status: 404 }
+        )
+      }
       if (post) {
         return NextResponse.json({
           ...post,
@@ -44,13 +67,10 @@ export async function GET(request: Request) {
       )
     }
     
-    // Sort posts by id descending (newest first)
-    const sortedPosts = allPosts.sort((a: Post, b: Post) => b.id - a.id)
-    
     // Calculate pagination
     const startIndex = (page - 1) * limit
     const endIndex = startIndex + limit
-    const posts = sortedPosts.slice(startIndex, endIndex)
+    const posts = allPosts.slice(startIndex, endIndex)
     const hasMore = endIndex < allPosts.length
     
     return NextResponse.json({

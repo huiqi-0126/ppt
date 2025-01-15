@@ -1,57 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs/promises'
-import path from 'path'
+import { supabase } from '@/supabaseClient'
+import { log } from 'console'
+
+interface Post {
+  id: number
+  title: string
+  content: string
+  tags: string[]
+  // ... other fields
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('q')
+  const query = searchParams.get('q')?.trim()
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '6')
-  
+
   if (!query) {
     return NextResponse.json({ posts: [], hasMore: false })
   }
 
   try {
-    // 读取 posts.json 文件
-    const dataPath = path.join(process.cwd(), 'data', 'posts.json')
-    const fileContent = await fs.readFile(dataPath, 'utf-8')
-    const allPosts = JSON.parse(fileContent)
-
     // 将搜索关键词按空格分词，并过滤掉空字符串
-    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean)
+    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const tagConditions = keywords.map(keyword => `tags.ilike.%${keyword}%`).join(',');
+    const searchConditions = `title.ilike.%${query}%,content.ilike.%${query}%`;
+    //const searchConditions = `title.ilike.%${query}%,content.ilike.%${query}%,tags.cs.{${query}}`;
 
-    // 搜索逻辑
-    const searchResults = allPosts.filter((post: any) => {
-      // 对每个关键词进行匹配
-      return keywords.some(keyword => {
-        const contentMatch = post.content?.toLowerCase().includes(keyword)
-        const tagsMatch = post.tags?.some((tag: string) => 
-          tag.toLowerCase().includes(keyword)
-        )
-        const titleMatch = post.title?.toLowerCase().includes(keyword)
-        
-        return contentMatch || tagsMatch || titleMatch
+
+    console.log("完整的查询条件:", searchConditions);
+    
+    const { data: posts, count } = await supabase
+     .from('posts')
+     .select('*', { count: 'exact' })
+     .or(searchConditions)
+     .order('id', { ascending: true })
+     .range((page - 1) * limit, page * limit - 1);   
+    // const { data: posts, count } = await supabase
+    // .from('posts')
+    // .select()
+    // .containedBy('tags', [''])
+      
+
+    console.log('组合查询结果:', posts)
+    
+    if (!posts || posts.length === 0) {
+      return NextResponse.json({
+        posts: [],
+        hasMore: false,
+        total: 0
       })
-    })
-
-    // 对搜索结果进行排序：包含更多关键词的排在前面
-    const sortedResults = searchResults.sort((a: any, b: any) => {
-      const scoreA = getMatchScore(a, keywords)
-      const scoreB = getMatchScore(b, keywords)
-      return scoreB - scoreA
-    })
-
-    // 分页处理
-    const start = (page - 1) * limit
-    const end = start + limit
-    const paginatedResults = sortedResults.slice(start, end)
-    const hasMore = end < sortedResults.length
+    }
+    
+    const hasMore = (count || 0) > page * limit
 
     return NextResponse.json({
-      posts: paginatedResults,
+      posts,
       hasMore,
-      total: sortedResults.length
+      total: count
     })
 
   } catch (error) {
@@ -62,25 +68,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
-// 计算匹配分数：匹配的关键词数量
-function getMatchScore(post: any, keywords: string[]): number {
-  let score = 0
-  
-  keywords.forEach(keyword => {
-    // 标题匹配权重最高
-    if (post.title?.toLowerCase().includes(keyword)) {
-      score += 3
-    }
-    // 标签匹配其次
-    if (post.tags?.some((tag: string) => tag.toLowerCase().includes(keyword))) {
-      score += 2
-    }
-    // 内容匹配权重最低
-    if (post.content?.toLowerCase().includes(keyword)) {
-      score += 1
-    }
-  })
-  
-  return score
-} 

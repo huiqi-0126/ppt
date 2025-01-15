@@ -1,0 +1,46 @@
+{
+  "records": [
+    {
+      "postId": "8901",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 578,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 1
+    },
+    {
+      "postId": "2",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 0,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 10
+    },
+    {
+      "postId": "14",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 0,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 10
+    },
+    {
+      "postId": "29",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 0,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 10
+    },
+    {
+      "postId": "1563",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 345,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 1
+    },
+    {
+      "postId": "3890",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 457,
+      "lastLikeDate": "2025-01-14",
+      "targetLikes": 10
+    }
+  ]
+}

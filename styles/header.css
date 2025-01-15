@@ -1,0 +1,14 @@
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-icon {
+  font-size: 20px;
+}
+
+.user-id {
+  font-family: monospace;
+  font-size: 14px;
+} 
