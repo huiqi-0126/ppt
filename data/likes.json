@@ -41,6 +41,20 @@
       "firstLikeCount": 457,
       "lastLikeDate": "2025-01-14",
       "targetLikes": 10
+    },
+    {
+      "postId": "55",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 1,
+      "lastLikeDate": "2025-01-15",
+      "targetLikes": 10
+    },
+    {
+      "postId": "56",
+      "userId": "f2d5c2e4-622f-4258-b1b6-06a5ec3542d7",
+      "firstLikeCount": 0,
+      "lastLikeDate": "2025-01-15",
+      "targetLikes": 1
     }
   ]
 }

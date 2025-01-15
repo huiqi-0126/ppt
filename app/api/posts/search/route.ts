@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     // .containedBy('tags', [''])
       
 
-    console.log('组合查询结果:', posts)
     
     if (!posts || posts.length === 0) {
       return NextResponse.json({

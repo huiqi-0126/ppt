@@ -19,6 +19,7 @@ interface Post {
   author: string
   views: number
   likes: number
+  fileUrl: string
   downloads: number
   shares: number
   tags: string[]
@@ -123,32 +124,42 @@ export default function PostDetail() {
   }
 
   const handleDownload = async () => {
-    const fileUrl = '你的文件下载链接';
 
-    console.log('下载文件URL:', fileUrl);
-    if (fileUrl) {
-      window.open(fileUrl, "_blank");
+    console.log('下载文件URL:', post?.fileUrl)
+    if (post?.fileUrl) {
+      window.open(post?.fileUrl, "_blank")
       
       try {
-        const response = await fetch('/api/download', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ postId }),
-        });
+        // 查询当前下载数量
+        const { data: postData, error: fetchError } = await supabase
+          .from('posts')
+          .select('downloads')
+          .eq('id', postId)
+          .single();
 
-        if (!response.ok) {
-          throw new Error('Failed to update download count');
+        if (fetchError) {
+          throw new Error('Failed to fetch current download count');
         }
 
-        const result = await response.json();
-        console.log('下载计数更新结果:', result);
+        const currentDownloads = postData.downloads || 0; // 获取当前下载数量，默认为0
+
+        // 更新下载计数
+        const { error: updateError } = await supabase
+          .from('posts')
+          .update({ downloads: currentDownloads + 1 }) // 下载数量加一
+          .eq('id', postId);
+
+        if (updateError) {
+          throw new Error('Failed to update downloads in Post table');
+        }
+
+        console.log('下载计数更新成功');
+
       } catch (error) {
         console.error('更新下载计数失败：', error);
       }
     } else {
-      console.error('File URL not available');
+      console.error('File URL not available')
     }
   };
 

@@ -124,7 +124,7 @@ export default function Home() {
     if (cachedData && cachedTime) {
       const now = Date.now();
       const cacheAge = now - Number(cachedTime);
-      if (cacheAge < 24 * 60 * 60 * 1000) { // 24小时
+      if (cacheAge < 60 * 1000) { // 24小时  24 * 60 * 60 * 
         setPosts(JSON.parse(cachedData));
         setLoading(false);
         return;
@@ -136,7 +136,6 @@ export default function Home() {
         .from('choiceness')
         .select('*')
         .order('id', { ascending: true });
-
       if (error) throw error;
       setPosts(data || []);
       setError(null);
@@ -152,9 +151,11 @@ export default function Home() {
     }
   }, []);
 
-  const handleSearch = useCallback(async (event?: React.MouseEvent<HTMLButtonElement>) => {
-    event?.preventDefault();
-    let query = searchValue.trim();
+  const handleSearch = useCallback(async (queryOrEvent?: string | React.MouseEvent<HTMLButtonElement>) => {
+    let query = typeof queryOrEvent === 'string' ? queryOrEvent : searchValue.trim();
+    if (typeof queryOrEvent !== 'string') {
+      queryOrEvent?.preventDefault();
+    }
     
     if (query === '') {
       setIsSearching(false);
@@ -209,13 +210,8 @@ export default function Home() {
   const handleSuggestionClick = useCallback((suggestion: string) => {
     if (typeof suggestion !== 'string') return;
     setSearchValue(suggestion);
-  }, []);
-
-  useEffect(() => {
-    if (searchValue) {
-      handleSearch();
-    }
-  }, [searchValue, handleSearch]);
+    handleSearch(suggestion);
+  }, [handleSearch]);
 
   const lastPostRef = useCallback((node: HTMLDivElement) => {
     if (loading) return
@@ -232,7 +228,7 @@ export default function Home() {
   }, [loading, hasMore, isSearching, page, fetchPostsFromSupabase])
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(e.target.value)
+    setSearchValue(e.target.value);
   }
 
   useEffect(() => {
@@ -286,7 +282,7 @@ export default function Home() {
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <div className="mt-2 flex flex-nowrap gap-2 overflow-hidden whitespace-nowrap" style={{ width: '200px' }}>
+            <div className="mt-2 flex flex-nowrap gap-2 overflow-hidden whitespace-nowrap" style={{ width: 'calc(100% + 200px)' }}>
               {suggestions.slice(0, 4).map((suggestion) => (
                 <Button
                   key={suggestion}
@@ -306,7 +302,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold">
               {isSearching ? "搜索结果" : "精选作品"}
             </h2>
-            {isSearching && (
+            {isSearching && totalResults > 0 && (
               <span className="text-sm text-gray-500 ml-4">
                 找到 {totalResults} 条相关内容
               </span>
