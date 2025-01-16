@@ -2,12 +2,6 @@ import { useState } from 'react'
 import LikeDownloadButton from '../components/LikeDownloadButton'
 import { PostData } from '../types/postData'
 
-interface PostData {
-  id: string
-  likes: number
-  // ... 其他属性
-}
-
 const DetailPage = () => {
   const [postData, setPostData] = useState<PostData | null>(null)
 
@@ -34,4 +28,4 @@ const DetailPage = () => {
   )
 }
 
-export default DetailPage 
+export default DetailPage

@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/supabaseClient'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '6')
+    const page = 1
+    const pageSize = 6
     
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1

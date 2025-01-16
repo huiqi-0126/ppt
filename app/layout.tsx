@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://yourdomain.com'),
   title: {
     default: '提供成品PPT下载，涵盖语文、数学、英语课件PPT，小学、初中课件PPT，山水画PPT，绘本PPT等。',
     template: '%s | 高质量PPT资源平台'
